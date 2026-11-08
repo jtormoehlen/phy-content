@@ -26,7 +26,13 @@
           ["4-2-mehrfachspalt.html", "Unbestimmtheit am Mehrfachspalt"],
           ["4-3-wellenpakete.html", "Wellenpakete"],
         ] },
-        { short: "Quantisierung", title: "Quantisierung der Photonenenergie", chapters: [] },
+        { short: "Quantisierung", title: "Quantisierung der Photonenenergie", chapters: [
+          ["5-1-hallwachs.html", "Der Hallwachs-Versuch"],
+          ["5-2-fotozelle.html", "Fotoeffekt an der Vakuum-Fotozelle"],
+          ["5-3-led.html", "Leuchtdiode als Photonenquelle"],
+          ["5-4-roentgenbremsspektrum.html", "Das Röntgenbremsspektrum"],
+          ["5-5-roentgenfluoreszenz.html", "Röntgenfluoreszenz"],
+        ] },
       ],
     },
     k8: {
@@ -85,6 +91,8 @@
     "nennen": "Elemente, Sachverhalte, Begriffe, Daten ohne Erläuterungen aufzählen.",
     "prüfen": "Sachverhalte oder Aussagen an Fakten oder innerer Logik messen und eventuelle Widersprüche aufdecken.",
     "skizzieren": "Sachverhalte, Strukturen oder Ergebnisse auf das Wesentliche reduziert übersichtlich darstellen.",
+    "überprüfen": "Sachverhalte oder Aussagen an Fakten oder innerer Logik messen und eventuelle Widersprüche aufdecken.",
+    "untersuchen": "Sachverhalte nach bestimmten, fachlich begründeten Kriterien erschließen.",
     "unterscheiden": "Sachverhalte anhand eines Merkmals voneinander abgrenzen.",
     "vergleichen": "Gemeinsamkeiten und Unterschiede herausarbeiten.",
     "zeichnen": "Eine möglichst exakte grafische Darstellung beobachtbarer oder gegebener Strukturen anfertigen.",

@@ -589,7 +589,169 @@
     show();
   }
 
-  const ALL = { mzi, doubleSlit, slit, zeiger, beugung, wellenpaket, koinzidenz, debroglie };
+  // =====================================================================
+  // 9) Röntgenbremsspektrum: kurzwelliges Ende und Grenzwellenlänge
+  // =====================================================================
+  function bremsspektrum(host) {
+    const HC = 1239.84; // h·c in eV·nm, also λ_G in pm = 1239,84 / U in kV
+    const KA = 154.1, KB = 139.2; // Kupfer-Anode: K_α und K_β in pm
+    const LMAX = 200;
+    const body = frame(host, "Röntgenröhre mit Kupfer-Anode", "Bremsspektrum nach Kramers, Intensität relativ");
+    body.innerHTML = `
+      <div class="ctrl">
+        <label>Beschleunigungsspannung U <input type="range" min="10" max="50" step="1" value="25" data-u></label>
+        <label><input type="checkbox" data-k checked> charakteristische Linien</label>
+        <label><input type="checkbox" data-g> Grenzwellenlänge markieren</label>
+      </div>
+      <canvas aria-label="Intensität der Röntgenstrahlung über der Wellenlänge"></canvas>
+      <div class="counts">${counter("Spannung U", "u")}${counter("Energie eines Elektrons e · U", "e")}${counter("Grenzwellenlänge λ<sub>G</sub>", "l")}</div>`;
+    const q = (s) => body.querySelector(s);
+    function spec(l, lg) {
+      let v = l > lg ? (1 / (l * l)) * (l / lg - 1) : 0;
+      if (q("[data-k]").checked) {
+        const peak = 1 / (4 * lg * lg); // Maximum des Kontinuums
+        v += 2.6 * peak * Math.exp(-((l - KA) ** 2) / 4) + 1.0 * peak * Math.exp(-((l - KB) ** 2) / 4);
+      }
+      return v;
+    }
+    const s = surface(q("canvas"), 1.8, (ctx, w, h) => {
+      const U = +q("[data-u]").value, lg = HC / U;
+      const gx = 48, gy = h - 34, gw = w - 64, gh = h - 54;
+      const X = (l) => gx + l / LMAX * gw;
+      let ymax = 0;
+      for (let l = 1; l <= LMAX; l += 0.25) ymax = Math.max(ymax, spec(l, lg));
+      const Y = (v) => gy - v / (ymax * 1.08) * gh;
+      ctx.strokeStyle = css("--grid"); ctx.lineWidth = 1;
+      for (let l = 0; l <= LMAX; l += 10) { ctx.beginPath(); ctx.moveTo(X(l), gy); ctx.lineTo(X(l), gy - gh); ctx.stroke(); }
+      ctx.strokeStyle = css("--fg"); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(gx, gy - gh - 4); ctx.lineTo(gx, gy); ctx.lineTo(gx + gw + 4, gy); ctx.stroke();
+      ctx.fillStyle = css("--muted"); ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+      for (let l = 0; l <= LMAX; l += 20) ctx.fillText(String(l), X(l), gy + 4);
+      ctx.fillText("λ in pm", gx + gw - 24, gy + 18);
+      ctx.save(); ctx.translate(16, gy - gh / 2); ctx.rotate(-Math.PI / 2); ctx.fillText("Intensität", 0, 0); ctx.restore();
+      ctx.strokeStyle = css("--accent-2"); ctx.lineWidth = 2; ctx.beginPath();
+      for (let l = 0.5, first = true; l <= LMAX; l += 0.25) {
+        const x = X(l), y = Y(spec(l, lg));
+        if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      if (q("[data-k]").checked) {
+        ctx.fillStyle = css("--fgeg"); ctx.font = "italic 13px Charter, Cambria, serif"; ctx.textBaseline = "bottom";
+        ctx.textAlign = "left"; ctx.fillText("Kα", X(KA) + 5, Y(spec(KA, lg)) + 12);
+        ctx.textAlign = "right"; ctx.fillText("Kβ", X(KB) - 5, Y(spec(KB, lg)) + 12);
+      }
+      if (q("[data-g]").checked) {
+        ctx.strokeStyle = css("--fres"); ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(X(lg), gy); ctx.lineTo(X(lg), gy - gh); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = css("--fres"); ctx.font = "600 12px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "top";
+        ctx.fillText("λG", X(lg) + 4, gy - gh);
+      }
+    });
+    function show() {
+      const U = +q("[data-u]").value;
+      setCount(body, "u", U + " kV");
+      setCount(body, "e", U + " keV");
+      setCount(body, "l", q("[data-g]").checked ? de(HC / U, 1) + " pm" : "–");
+      s.redraw();
+    }
+    body.querySelectorAll("input").forEach((i) => i.addEventListener("input", show));
+    show();
+  }
+
+  // =====================================================================
+  // 10) Röntgenfluoreszenz: gemessene Spektren und Linien der Elemente
+  // =====================================================================
+  function rfa(host, opts) {
+    // Messungen mit Röntgenenergiedetektor (Mo-Anode, 35 kV, 1 mA, 300 s), Zählrate je Kanal
+    const PROBEN = {
+      kupfer: { e0: 0.1, e1: 14.7, n: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,3,2,5,7,13,16,28,34,28,39,47,44,46,35,59,46,45,36,49,49,45,49,35,48,50,46,37,47,46,40,44,48,37,34,49,52,33,43,48,38,41,43,46,52,46,50,48,41,54,43,50,48,39,43,38,44,43,40,42,49,37,45,53,37,41,43,46,41,41,53,43,53,40,42,57,43,61,46,48,38,36,39,45,42,49,48,50,52,41,42,52,47,66,54,42,86,108,175,285,450,619,819,965,1118,1132,954,737,452,280,167,99,50,63,47,78,124,119,139,171,128,112,74,48,24,16,5,5,1,0,0,1,1,0,0,0,0,1,0,0,2,1,1,1,1,0,0,1,1,0,0,0,0,1,0,0,1,0,1,1,0,0,0,1,0,0,0,1,0,1,0,1,1,1,0,2,0,1,0,0,0,1,0,0,0,0,0,1,2,1,0,2,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,1,0] },
+      wolfram: { e0: 0.1, e1: 14.7, n: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,3,0,0,1,1,1,1,1,0,0,0,0,2,1,0,1,0,0,0,1,0,2,1,1,1,2,1,3,0,2,0,1,0,2,0,0,3,1,1,1,4,4,3,3,3,1,1,2,2,1,0,2,3,3,2,2,4,0,2,2,2,8,4,4,2,0,4,3,5,7,6,10,9,5,6,5,2,2,5,5,5,10,15,16,20,17,26,41,28,29,23,24,16,19,18,10,20,39,76,105,198,294,403,453,519,486,380,305,219,139,64,42,23,15,14,8,17,19,36,70,87,172,228,319,344,386,432,450,371,281,216,168,140,90,57,49,26,9,7,4,0,3,3,0,6,1,10,13,13,18,31,26,32,37,34,24,17,20,24,16,6,6,6,5,2,1,1,1,1,1,2,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,2,0,0,0,0,0,1,0,2,2,0,2,2,0,0,0,1,0,0,0,1,0,0] },
+      dollar: { e0: 0.1, e1: 14.7, n: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,2,2,2,0,1,0,1,1,1,1,0,0,2,2,1,0,2,1,4,1,1,1,2,0,4,4,1,0,3,1,1,1,1,1,2,2,3,2,1,4,3,2,2,0,4,2,3,2,3,8,2,5,11,14,23,25,41,43,71,79,80,76,58,44,39,31,26,25,39,35,14,17,22,14,10,11,13,11,16,10,17,31,37,69,68,98,108,128,153,222,315,532,761,1106,1299,1451,1458,1351,1048,745,516,329,282,272,281,356,334,369,322,299,229,226,174,114,60,31,22,21,19,13,16,15,8,14,7,4,3,3,2,1,0,0,1,0,0,0,0,0,2,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,3,0,1,1,1,0,0,1,2,1,2,1,2,1,0,0,0,0,0,0,0,1,2,0,1,0,1,0,0,0,0,0,0,1,1,0,0,0,0,1,2,0,0,1,0,1,0,0,0,0,1,0,0] },
+      ilmenit: { e0: 0.1, e1: 14.7, n: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,4,7,5,11,15,26,17,23,18,28,31,30,37,29,35,40,42,29,39,40,32,39,29,36,41,44,32,36,38,35,27,38,17,36,28,26,36,50,60,78,93,124,121,144,125,113,94,77,60,69,52,36,57,38,34,39,28,29,34,38,37,41,60,51,71,86,86,106,145,197,336,430,588,765,800,870,718,612,427,275,178,131,138,159,152,164,162,139,131,78,74,63,53,27,35,34,28,24,24,18,23,31,30,31,16,24,29,28,21,31,44,28,50,27,34,24,25,23,22,12,14,15,14,15,16,23,26,19,35,35,25,33,32,23,24,25,13,21,14,12,13,16,14,22,24,20,15,9,8,12,17,12,21,23,22,28,30,28,23,22,25,30,25,28,18,27,21,19,17,15,21,13,26,21,14,24,17,22,22,19,26,21,23,14,33,25,35,42,45,47,47,50,48,43,44,30,30,35,32,22,33,22,35,24,38,35,24,25,24,25,25,21,36,32,33,29] },
+      schnecke: { e0: 0.1, e1: 14.7, n: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,9,9,28,34,37,34,36,54,39,46,49,39,47,43,49,45,62,46,58,62,85,80,178,231,319,429,544,581,577,481,468,359,276,201,154,121,100,69,48,31,34,25,27,19,30,24,32,26,24,37,16,35,23,31,22,25,32,31,31,29,29,21,21,32,26,29,25,41,35,44,53,59,68,56,51,66,41,41,33,38,30,38,39,30,39,34,39,50,50,51,46,44,54,42,34,25,23,30,38,48,27,40,26,29,32,34,28,41,38,31,31,49,24,30,16,21,25,23,20,27,9,19,25,25,33,34,32,45,47,52,43,28,31,22,26,23,20,25,18,20,20,17,18,19,19,23,18,19,19,27,18,24,20,32,27,28,47,36,34,26,27,32,26,31,20,16,20,35,17,21,17,24,28,24,30,20,34,29,24,16,28,24,26,31,25,24,33,37,25,21,29,33,25,39,42,37,42,39,52,57,47,57,54,64,56,50,35,40,35,32,45,22,39,38] },
+    };
+    const NAMEN = { kupfer: "Kupferplättchen", wolfram: "Wolframplättchen", dollar: "1-Dollar-Münze", ilmenit: "Ilmenit (Gestein)", schnecke: "Schneckenhaus" };
+    // Linienenergien in keV (K_α, K_β bzw. L_α, L_β bei Wolfram)
+    const LINIEN = [
+      ["Ca", 20, [["Kα", 3.69], ["Kβ", 4.01]]],
+      ["Ti", 22, [["Kα", 4.51], ["Kβ", 4.93]]],
+      ["Mn", 25, [["Kα", 5.90], ["Kβ", 6.49]]],
+      ["Fe", 26, [["Kα", 6.40], ["Kβ", 7.06]]],
+      ["Ni", 28, [["Kα", 7.48], ["Kβ", 8.26]]],
+      ["Cu", 29, [["Kα", 8.04], ["Kβ", 8.91]]],
+      ["Zn", 30, [["Kα", 8.64], ["Kβ", 9.57]]],
+      ["W", 74, [["Lα", 8.40], ["Lβ", 9.67]]],
+    ];
+    const EMIN = 2, EMAX = 12;
+    const body = frame(host, "Röntgenfluoreszenz", "Messdaten aus der Schulsammlung");
+    body.innerHTML = `
+      <div class="ctrl">
+        <label>Probe <select data-p>${Object.keys(PROBEN).map((k) => `<option value="${k}">${NAMEN[k]}</option>`).join("")}</select></label>
+      </div>
+      <div class="ctrl">Linien einblenden: ${LINIEN.map(([sym, z], i) => `<label><input type="checkbox" data-l="${i}"> ${sym} (Z = ${z})</label>`).join("")}</div>
+      <canvas aria-label="Gemessenes Röntgenspektrum: Zählrate über der Energie"></canvas>
+      <div class="counts">${counter("Energie an der Zeigerposition", "e")}${counter("Zählrate", "n")}</div>`;
+    const q = (s) => body.querySelector(s);
+    if (opts.probe && PROBEN[opts.probe]) q("[data-p]").value = opts.probe;
+    let cursor = null;
+    const geo = {};
+    function data() {
+      const p = PROBEN[q("[data-p]").value], step = (p.e1 - p.e0) / (p.n.length - 1);
+      return p.n.map((v, i) => [p.e0 + i * step, v]);
+    }
+    const s = surface(q("canvas"), 1.8, (ctx, w, h) => {
+      const d = data().filter(([e]) => e >= EMIN && e <= EMAX);
+      const gx = 52, gy = h - 34, gw = w - 66, gh = h - 54;
+      const nmax = Math.max(...d.map(([, v]) => v)) * 1.12;
+      const X = (e) => gx + (e - EMIN) / (EMAX - EMIN) * gw, Y = (v) => gy - v / nmax * gh;
+      Object.assign(geo, { gx, gw });
+      ctx.strokeStyle = css("--grid"); ctx.lineWidth = 1;
+      for (let e = EMIN; e <= EMAX; e += 0.5) { ctx.beginPath(); ctx.moveTo(X(e), gy); ctx.lineTo(X(e), gy - gh); ctx.stroke(); }
+      ctx.strokeStyle = css("--fg"); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(gx, gy - gh - 4); ctx.lineTo(gx, gy); ctx.lineTo(gx + gw + 4, gy); ctx.stroke();
+      ctx.fillStyle = css("--muted"); ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+      for (let e = EMIN; e <= EMAX; e++) ctx.fillText(String(e), X(e), gy + 4);
+      ctx.fillText("E in keV", gx + gw - 26, gy + 18);
+      ctx.save(); ctx.translate(16, gy - gh / 2); ctx.rotate(-Math.PI / 2); ctx.fillText("Zählrate", 0, 0); ctx.restore();
+      // eingeblendete Linien
+      body.querySelectorAll("[data-l]").forEach((cb) => {
+        if (!cb.checked) return;
+        const [sym, , lines] = LINIEN[+cb.dataset.l];
+        lines.forEach(([name, e], j) => {
+          const top = gy - gh * (j ? 0.62 : 0.86);
+          ctx.strokeStyle = css("--fgeg"); ctx.lineWidth = 1.2; ctx.setLineDash([4, 3]);
+          ctx.beginPath(); ctx.moveTo(X(e), gy); ctx.lineTo(X(e), top); ctx.stroke(); ctx.setLineDash([]);
+          ctx.fillStyle = css("--fgeg"); ctx.font = "12px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+          ctx.fillText(sym + " " + name, X(e), top - 2);
+        });
+      });
+      ctx.strokeStyle = css("--accent-2"); ctx.lineWidth = 1.8; ctx.beginPath();
+      d.forEach(([e, v], i) => (i ? ctx.lineTo(X(e), Y(v)) : ctx.moveTo(X(e), Y(v))));
+      ctx.stroke();
+      if (cursor != null) {
+        ctx.strokeStyle = css("--fres"); ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(X(cursor), gy); ctx.lineTo(X(cursor), gy - gh); ctx.stroke();
+      }
+    });
+    function readout() {
+      if (cursor == null) { setCount(body, "e", "–"); setCount(body, "n", "–"); return; }
+      const near = data().reduce((a, b) => (Math.abs(b[0] - cursor) < Math.abs(a[0] - cursor) ? b : a));
+      setCount(body, "e", de(cursor, 2) + " keV");
+      setCount(body, "n", String(near[1]));
+    }
+    function point(ev) {
+      const r = q("canvas").getBoundingClientRect();
+      const e = EMIN + (ev.clientX - r.left - geo.gx) / geo.gw * (EMAX - EMIN);
+      cursor = e >= EMIN && e <= EMAX ? e : null;
+      readout(); s.redraw();
+    }
+    q("canvas").addEventListener("pointermove", point);
+    q("canvas").addEventListener("pointerdown", point);
+    body.querySelectorAll("input, select").forEach((i) => i.addEventListener("input", () => s.redraw()));
+    readout();
+  }
+
+  const ALL = { mzi, doubleSlit, slit, zeiger, beugung, wellenpaket, koinzidenz, debroglie, bremsspektrum, rfa };
   document.querySelectorAll("[data-sim]").forEach((host) => {
     const fn = ALL[host.dataset.sim];
     let opts = {};
