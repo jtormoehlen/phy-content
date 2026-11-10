@@ -318,8 +318,22 @@
     });
   }
 
+  // Sprungmarke zur Selbstkontrolle unter der Einleitung
+  function linkSelbstkontrolle() {
+    const sk = document.getElementById("selbstkontrolle");
+    const lead = document.querySelector("main .lead");
+    if (!sk || !lead) return;
+    const n = sk.querySelectorAll(".task").length, q = sk.querySelectorAll(".qq").length;
+    const teile = [n ? `${n} Aufgabe${n > 1 ? "n" : ""}` : "", q ? `${q} Quizfrage${q > 1 ? "n" : ""}` : ""].filter(Boolean).join(", ");
+    const p = document.createElement("p");
+    p.className = "zur-sk";
+    p.innerHTML = `<a href="#selbstkontrolle">↓ Zur Selbstkontrolle${teile ? ` (${teile})` : ""}</a>`;
+    lead.after(p);
+  }
+
   buildHeader();
   buildChapterNav();
+  linkSelbstkontrolle();
   wrapTables();
   initOperators();
   initVersuche();

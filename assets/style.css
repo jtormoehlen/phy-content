@@ -357,8 +357,27 @@ button.btn:disabled { opacity: .5; cursor: default; }
 .pager .next { text-align: right; grid-column: 2; }
 footer.site { border-top: 1px solid var(--line); color: var(--muted); font: 13px system-ui, sans-serif; padding: 16px 0 30px; }
 
+/* ---------- Abbildungen aus TikZ (figures/, feste Farben: immer auf hellem Grund) ---------- */
+figure.fig img { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 10px; box-sizing: border-box; max-width: 100%; margin: 0 auto; }
+figure.fig figcaption { text-align: center; }
+.fig-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; align-items: end; }
+.fig-pair figure { margin: 0; }
+
+/* ---------- Teil A Information / Teil B Selbstkontrolle ---------- */
+.teil-kopf { display: inline-block; font: 700 .74rem system-ui, sans-serif; text-transform: uppercase; letter-spacing: .08em; padding: 3px 10px; border-radius: 999px; margin: 0 0 6px; }
+.information > .teil-kopf { background: var(--soft); color: var(--muted); border: 1px solid var(--line); }
+.selbstkontrolle { margin-top: 44px; padding: 14px 18px 18px; border: 2px solid var(--accent-2); border-radius: 12px; background: var(--accent-soft); }
+.selbstkontrolle > .teil-kopf { background: var(--accent-2); color: #fff; }
+.selbstkontrolle > h2 { margin-top: 4px; }
+.selbstkontrolle .task { background: var(--bg); border-radius: 0 8px 8px 0; padding: 10px 14px 10px 16px; }
+.selbstkontrolle .quiz { background: var(--bg); border-radius: 8px; }
+.sk-hinweis { font: 14px system-ui, sans-serif; color: var(--muted); }
+.zur-sk { font: 600 14px system-ui, sans-serif; margin: -4px 0 14px; }
+.zur-sk a { text-decoration: none; }
+
 @media print {
   header.site, .pager, footer.site, .sim .ctrl { display: none; }
   .tafel { box-shadow: none; }
   details { border: 0; } details > summary { display: none; }
+  .selbstkontrolle { break-before: page; background: none; }
 }
